@@ -1,25 +1,37 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.signal import butter, filtfilt
+
+# period of 10 ms
+sampling_rate = 100
 
 # Load CSV file into a pandas DataFrame
-df = pd.read_csv('accelerometer.csv')
+df = pd.read_csv('acc2.csv')
 
-# Create a figure with subplots for each axis
-fig, axs = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(10, 6))
-fig.suptitle('Accelerometer Data')
+# Calculate magnitude of x, y, and z signals
+magnitude = (df['x']**2 + df['y']**2 + df['z']**2)**0.5
 
-# Plot the z-axis data
-axs[0].plot(df['time'], df['z'])
-axs[0].set_ylabel('Z-axis (m/s^2)')
+# Add magnitude column to DataFrame
+df['magnitude'] = magnitude
 
-# Plot the y-axis data
-axs[1].plot(df['time'], df['y'])
-axs[1].set_ylabel('Y-axis (m/s^2)')
+# Low pass filter
+order = 4
+fs = sampling_rate  # sample rate, Hz
+cutoff = 4  # desired cutoff frequency of the filter, Hz. 
+nyq = 0.5 * fs
+normal_cutoff = cutoff / nyq
+b, a = butter(order, normal_cutoff, btype='low', analog=False)
 
-# Plot the x-axis data
-axs[2].plot(df['time'], df['x'])
-axs[2].set_ylabel('X-axis (m/s^2)')
-axs[2].set_xlabel('Time (s)')
+lowpass = filtfilt(b, a, magnitude)
+
+# Plot the magnitude data
+print(len(df))
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(df['time'], magnitude)
+ax.plot(df['time'], lowpass)
+ax.set_title('Magnitude of Accelerometer Data')
+ax.set_xlabel('Time (s)')
+ax.set_ylabel('Magnitude (m/s^2)')
 
 # Show the plot
 plt.show()
