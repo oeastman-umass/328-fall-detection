@@ -6,8 +6,8 @@ from scipy.signal import butter, filtfilt
 sampling_rate = 100
 
 # Load CSV file into a pandas DataFrame
-df = pd.read_csv('acc2.csv')
-
+df = pd.read_csv('data/3300-4200.csv')
+print(df)
 # Calculate magnitude of x, y, and z signals
 magnitude = (df['x']**2 + df['y']**2 + df['z']**2)**0.5
 
@@ -27,8 +27,9 @@ lowpass = filtfilt(b, a, magnitude)
 # Plot the magnitude data
 print(len(df))
 fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(df['time'], magnitude)
-ax.plot(df['time'], lowpass)
+# ax.plot(df['time'], magnitude)
+# ax.plot(df['time'], lowpass)
+ax.plot(range(len(magnitude)), magnitude)
 ax.set_title('Magnitude of Accelerometer Data')
 ax.set_xlabel('Time (s)')
 ax.set_ylabel('Magnitude (m/s^2)')
