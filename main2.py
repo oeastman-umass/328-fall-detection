@@ -10,9 +10,11 @@ from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import make_scorer, precision_score, recall_score, accuracy_score
 from sklearn.tree import DecisionTreeClassifier
 import numpy as np
+import sys
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 # Load the dataset
-data_folder = 'data'
+data_folder = 'data2'
 df = pd.DataFrame()
 
 # Iterate over all files in the data folder
@@ -91,6 +93,48 @@ for i in range(0, len(df)-window_size, window_size):
 X = features.drop('Activity', axis=1)
 y = features['Activity']
 
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix
+import numpy as np
+import sys
+
+tree = None
+cv = KFold(n_splits=10, shuffle=True, random_state=None)
+
+total_accuracy = 0
+total_precision = 0
+total_recall = 0
+
+for i, (train_index, test_index) in enumerate(cv.split(X)):
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+    tree = DecisionTreeClassifier(criterion="entropy", max_depth=3)
+    print("Fold {} : Training decision tree classifier over {} points...".format(i, len(y_train)))
+    sys.stdout.flush()
+    tree.fit(X_train, y_train)
+    print("Evaluating classifier over {} points...".format(len(y_test)))
+
+    # predict the labels on the test data
+    y_pred = tree.predict(X_test)
+
+    # show the comparison between the predicted and ground-truth labels
+    conf = confusion_matrix(y_test, y_pred)
+    print(conf)
+
+    accuracy = np.sum(np.diag(conf)) / float(np.sum(conf))
+    precision, recall, _, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
+    print("Precision = ", precision)
+    print("Recall = ", recall)
+    total_accuracy += accuracy
+    total_precision += precision
+    total_recall += recall
+
+print("The average accuracy is {}".format(total_accuracy / 10.0))
+print("The average precision is {}".format(total_precision / 10.0)) 
+print("The average recall is {}".format(total_recall / 10.0)) 
+
+print("Training decision tree classifier on entire dataset...")
+tree.fit(X, y)
 
 
 

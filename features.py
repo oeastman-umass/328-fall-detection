@@ -27,7 +27,8 @@ def compute_fft_features(data):
     max_magnitude_index = np.argmax(fft_magnitudes)
     most_frequent_signal = fft_signal[max_magnitude_index]
     frequency = max_magnitude_index * sample_rate / len(data)
-    return most_frequent_signal, frequency
+    # return most_frequent_signal, frequency
+    return frequency
 
 from scipy.stats import entropy
 def compute_ent_features(data):
