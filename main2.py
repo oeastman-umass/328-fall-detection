@@ -12,12 +12,14 @@ from sklearn.tree import DecisionTreeClassifier
 import numpy as np
 import sys
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from sklearn.ensemble import RandomForestClassifier
 
 # Load the dataset
 data_folder = 'data2'
 df = pd.DataFrame()
 
 # Iterate over all files in the data folder
+print('> Loading data from all CSVs . . .')
 for file_name in os.listdir(data_folder):
     if file_name.endswith('.csv'):
         # Load the current CSV file
@@ -45,6 +47,7 @@ features = pd.DataFrame()
 window_size = 100
 
 # Extract features for each window
+print('> Extracting features for each window . . .')
 for i in range(0, len(df)-window_size, window_size):
     X = df['x'].values[i: i + window_size]
     Y = df['y'].values[i: i + window_size]
@@ -90,6 +93,7 @@ for i in range(0, len(df)-window_size, window_size):
     features = pd.concat([features, new_row], ignore_index=True)
 
 # Split the data
+print('> Splitting data into vectors and labels . . .')
 X = features.drop('Activity', axis=1)
 y = features['Activity']
 
@@ -105,26 +109,27 @@ total_accuracy = 0
 total_precision = 0
 total_recall = 0
 
+print('> Testing decision tree classifier . . .')
 for i, (train_index, test_index) in enumerate(cv.split(X)):
     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
     tree = DecisionTreeClassifier(criterion="entropy", max_depth=3)
-    print("Fold {} : Training decision tree classifier over {} points...".format(i, len(y_train)))
+    # print("Fold {} : Training decision tree classifier over {} points...".format(i, len(y_train)))
     sys.stdout.flush()
     tree.fit(X_train, y_train)
-    print("Evaluating classifier over {} points...".format(len(y_test)))
+    # print("Evaluating classifier over {} points...".format(len(y_test)))
 
     # predict the labels on the test data
     y_pred = tree.predict(X_test)
 
     # show the comparison between the predicted and ground-truth labels
     conf = confusion_matrix(y_test, y_pred)
-    print(conf)
+    # print(conf)
 
     accuracy = np.sum(np.diag(conf)) / float(np.sum(conf))
     precision, recall, _, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
-    print("Precision = ", precision)
-    print("Recall = ", recall)
+    # print("Precision = ", precision)
+    # print("Recall = ", recall)
     total_accuracy += accuracy
     total_precision += precision
     total_recall += recall
@@ -133,10 +138,43 @@ print("The average accuracy is {}".format(total_accuracy / 10.0))
 print("The average precision is {}".format(total_precision / 10.0)) 
 print("The average recall is {}".format(total_recall / 10.0)) 
 
-print("Training decision tree classifier on entire dataset...")
+print("> Training decision tree classifier on entire dataset...")
 tree.fit(X, y)
 
+forest = None
+cv = KFold(n_splits=10, shuffle=True, random_state=None)
 
+total_accuracy = 0
+total_precision = 0
+total_recall = 0
+
+print('Testing random forest classifier . . .')
+for i, (train_index, test_index) in enumerate(cv.split(X)):
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+    forest = RandomForestClassifier(criterion="entropy", max_depth=3)
+    # print("Fold {} : Training random forest classifier over {} points...".format(i, len(y_train)))
+    sys.stdout.flush()
+    forest.fit(X_train, y_train)
+    # print("Evaluating classifier over {} points...".format(len(y_test)))
+
+    # predict the labels on the test data
+    y_pred = forest.predict(X_test)
+
+    # show the comparison between the predicted and ground-truth labels
+    conf = confusion_matrix(y_test, y_pred)
+    # print(conf)
+
+    accuracy = np.sum(np.diag(conf)) / float(np.sum(conf))
+    precision, recall, _, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
+    # print("Precision = ", precision)
+    # print("Recall = ", recall)
+    total_accuracy += accuracy
+    total_precision += precision
+    total_recall += recall
+print("The average accuracy is {}".format(total_accuracy / 10.0))
+print("The average precision is {}".format(total_precision / 10.0)) 
+print("The average recall is {}".format(total_recall / 10.0)) 
 
 # import matplotlib.pyplot as plt
 
