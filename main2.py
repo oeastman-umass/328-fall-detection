@@ -13,34 +13,57 @@ import numpy as np
 import sys
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.ensemble import RandomForestClassifier
+from scipy.signal import butter, filtfilt
+
+sample_rate = 100
 
 # Load the dataset
-data_folder = 'data2'
+data_folder = 'data'
 df = pd.DataFrame()
 
-# Iterate over all files in the data folder
+# iterate over csvs
 print('> Loading data from all CSVs . . .')
 for file_name in os.listdir(data_folder):
     if file_name.endswith('.csv'):
-        # Load the current CSV file
         current_df = pd.read_csv(os.path.join(data_folder, file_name))
         
-        # Extract the indices for label 1 from the file name
-        start_index, end_index = map(int, file_name[:-4].split('-'))  # Remove .csv and split
+        # Get fall indices based on name, remove ".csv"
+        start_index, end_index = map(int, file_name[:-4].split('-'))
 
         # Assign labels based on the indices
         current_df['Activity'] = 0
         current_df.loc[start_index:end_index, 'Activity'] = 1
         
-        # Append the current DataFrame to the main DataFrame
+        # Add curr dataframe to global one
         df = pd.concat([df, current_df], ignore_index=True)
 
 df['magnitude'] = (df['x']**2 + df['y']**2 + df['z']**2)**0.5
 
-# Check if there are any NaN values
-df.isnull().sum()
+def butter_lowpass(cutoff, fs):
+    order = 4
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
 
-# Drop rows with NaN values (if any)
+def butter_lowpass_filter(data, cutoff, fs):
+    b, a = butter_lowpass(cutoff, fs)
+    y = filtfilt(b, a, data)
+    return y
+
+# Use cutoff of 3 to get rid of high frequency noise
+cutoff = 3.0
+
+# Apply lowpass filter
+print("> Applying lowpass filter . . .")
+df['x'] = butter_lowpass_filter(df['x'], cutoff, sample_rate)
+df['y'] = butter_lowpass_filter(df['y'], cutoff, sample_rate)
+df['z'] = butter_lowpass_filter(df['z'], cutoff, sample_rate)
+df['magnitude'] = butter_lowpass_filter(df['magnitude'], cutoff, sample_rate)
+
+# Check for NaN values
+df.isnull().sum()
+# Drop rows with NaN values
 df = df.dropna()
 
 features = pd.DataFrame()
@@ -58,22 +81,22 @@ for i in range(0, len(df)-window_size, window_size):
     # Get the mode of the activities in the window
     activity = mode(activities, keepdims=False)[0]
     
-    # Create a new row as a DataFrame and concatenate it to the features DataFrame
+    # Create a new row as a DataFrame and concatenate to features DataFrame
     new_row = pd.DataFrame([{
         'X_mean': feat.calculate_mean(X),
-        'X_std': feat.calculate_std(X),
+        'X_std': feat.calculate_variance(X),
         'X_min': feat.calculate_min(X),
         'X_max': feat.calculate_max(X),
         'Y_mean': feat.calculate_mean(Y),
-        'Y_std': feat.calculate_std(Y),
+        'Y_std': feat.calculate_variance(Y),
         'Y_min': feat.calculate_min(Y),
         'Y_max': feat.calculate_max(Y),
         'Z_mean': feat.calculate_mean(Z),
-        'Z_std': feat.calculate_std(Z),
+        'Z_std': feat.calculate_variance(Z),
         'Z_min': feat.calculate_min(Z),
         'Z_max': feat.calculate_max(Z),
         'Mag_mean': feat.calculate_mean(Mag),
-        'Mag_std': feat.calculate_std(Mag),
+        'Mag_std': feat.calculate_variance(Mag),
         'Mag_min': feat.calculate_min(Mag),
         'Mag_max': feat.calculate_max(Mag),
         'X_median': feat.calculate_median(X),
@@ -88,8 +111,12 @@ for i in range(0, len(df)-window_size, window_size):
         'Y_entropy': feat.compute_ent_features(Y),
         'Z_entropy': feat.compute_ent_features(Z),
         'Mag_entropy': feat.compute_ent_features(Mag),
+        'X_peaks': feat.compute_peak_features(X),
+        'Y_peaks': feat.compute_peak_features(Y),
+        'Z_peaks': feat.compute_peak_features(Z),
+        'Mag_peaks': feat.compute_peak_features(Mag),
         'Activity': activity
-}])
+    }])
     features = pd.concat([features, new_row], ignore_index=True)
 
 # Split the data
@@ -138,8 +165,8 @@ print("The average accuracy is {}".format(total_accuracy / 10.0))
 print("The average precision is {}".format(total_precision / 10.0)) 
 print("The average recall is {}".format(total_recall / 10.0)) 
 
-print("> Training decision tree classifier on entire dataset...")
-tree.fit(X, y)
+# print("> Training decision tree classifier on entire dataset...")
+# tree.fit(X, y)
 
 forest = None
 cv = KFold(n_splits=10, shuffle=True, random_state=None)
@@ -172,27 +199,7 @@ for i, (train_index, test_index) in enumerate(cv.split(X)):
     total_accuracy += accuracy
     total_precision += precision
     total_recall += recall
+
 print("The average accuracy is {}".format(total_accuracy / 10.0))
 print("The average precision is {}".format(total_precision / 10.0)) 
 print("The average recall is {}".format(total_recall / 10.0)) 
-
-# import matplotlib.pyplot as plt
-
-# # Create a figure and a set of subplots
-# fig, ax = plt.subplots()
-
-# # Plot the magnitude for each activity
-# for activity in df['Activity'].unique():
-#     df_activity = df[df['Activity'] == activity]
-#     ax.plot(df_activity.index, df_activity['Magnitude'], label=f'Activity {activity}')
-
-# # Set the title and labels
-# ax.set_title('Magnitude of Accelerometer Data Over Time')
-# ax.set_xlabel('Time')
-# ax.set_ylabel('Magnitude')
-
-# # Add a legend
-# ax.legend()
-
-# # Show the plot
-# plt.show()
